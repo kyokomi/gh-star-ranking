@@ -8,7 +8,10 @@ import (
 	"github.com/gorilla/mux"
 
 	"appengine"
+	"appengine/datastore"
 )
+
+const dataStoreRanking = "Ranking"
 
 func init() {
 	// router
@@ -48,7 +51,13 @@ func rankingHandler(w http.ResponseWriter, r *http.Request) {
 		Language: lang,
 		Rankings: rankings,
 	}
-	//	c.Infof(fmt.Sprint(res))
+
+	// TODO: 前日のランキングを取得
+//	rankings := make([]Ranking, 0, 30)
+//	if _, err := q.GetAll(c, &rankings); err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
 
 	if err := rankingTemplate.Execute(w, res); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -56,5 +65,41 @@ func rankingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func snapshotHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello, world!")
+	c := appengine.NewContext(r)
+
+	vars := mux.Vars(r)
+	lang := vars["language"]
+
+	// TODO: 今日のデータを取得するようにする
+	q := datastore.NewQuery(dataStoreRanking).Ancestor(rankingKey(c)).Filter("Lang = ", lang).Order("-Date").Limit(30)
+	count, err := q.Count(c)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 今日の登録
+	if count == 0 {
+		rankings, err := readGitHubStarRanking(c, lang)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		for _, ranking := range rankings {
+			key := datastore.NewIncompleteKey(c, dataStoreRanking, rankingKey(c))
+			_, err := datastore.Put(c, key, &ranking)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		fmt.Fprint(w, "登録した ", len(rankings))
+	} else {
+		fmt.Fprint(w, "登録済み ")
+	}
+}
+
+func rankingKey(c appengine.Context) *datastore.Key {
+	return datastore.NewKey(c, dataStoreRanking, "defualt_ranking", 0, nil)
 }

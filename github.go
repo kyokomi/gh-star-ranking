@@ -20,16 +20,12 @@ const (
 // Ranking struct GitHub Star Ranking.
 type Ranking struct {
 	Item
-	Rank     int64
-	LastRank int64
-	//	FullName string
-	//	StargazersCount int64
+	Lang                string
+	Rank                int64
+	LastRank            int64
 	LastStargazersCount int64
 	UserURL             string
-	//	OwnerAvatarURL string
-	//	HtmlURL string
-	//	UpdatedAt       string
-	//	CreatedAt       string
+	Date                time.Time
 }
 
 // parse time default.
@@ -70,10 +66,12 @@ func readGitHubStarRanking(c appengine.Context, lang string) ([]Ranking, error) 
 		return nil, err
 	}
 
-	return newRankings(&reps), nil
+	return newRankings(lang, &reps), nil
 }
 
-func newRankings(reps *Repositories) []Ranking {
+func newRankings(lang string, reps *Repositories) []Ranking {
+
+	now := time.Now()
 
 	rankings := make([]Ranking, len(reps.Items))
 	for idx, item := range reps.Items {
@@ -82,10 +80,12 @@ func newRankings(reps *Repositories) []Ranking {
 
 		rankings[idx] = Ranking{
 			Item:                item,
+			Lang:                lang,
 			Rank:                int64(idx + 1),
 			LastRank:            lastRank,
 			LastStargazersCount: lastStargazersCount,
 			UserURL:             fmt.Sprintf(gitHubUserURL, item.Owner.Login),
+			Date:                now,
 		}
 	}
 	return rankings

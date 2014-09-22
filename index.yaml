@@ -1,0 +1,7 @@
+indexes:
+- kind: Ranking
+  ancestor: yes
+  properties:
+  - name: Date
+    direction: desc
+  - name: Lang
